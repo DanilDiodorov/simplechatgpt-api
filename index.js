@@ -46,7 +46,13 @@ const generateResponse = async (prompt, id) => {
 io.on('connection', (socket) => {
     users.push({
         id: socket.id,
-        messages: [],
+        messages: [
+            {
+                role: 'system',
+                content:
+                    'ты психолог, помогай людям и утешай их. на другие запросы отвечай что ты только психолог',
+            },
+        ],
     })
     console.log(users)
     // Обработка события отправки сообщения клиентом
