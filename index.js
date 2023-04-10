@@ -30,12 +30,15 @@ const generateResponse = async (prompt, id) => {
         model: 'gpt-3.5-turbo',
         messages,
     })
+    messages.push({
+        role: 'assistant',
+        content: response.data.choices[0].message.content,
+    })
     users.map((user) => {
         if (user.id === id) {
             user.messages = messages
         }
     })
-    console.log(users)
     return response.data.choices[0].message.content
 }
 
