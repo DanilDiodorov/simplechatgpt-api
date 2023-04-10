@@ -35,6 +35,7 @@ const generateResponse = async (prompt, id) => {
             user.messages = messages
         }
     })
+    console.log(users)
     return response.data.choices[0].message.content
 }
 
