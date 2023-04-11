@@ -26,34 +26,39 @@ const generateResponse = async (prompt, id) => {
         }
     })
     messages.push({ role: 'user', content: prompt.trim() })
-    const response = await openaiapi.createChatCompletion({
-        model: 'gpt-3.5-turbo',
-        messages,
-    })
-    messages.push({
-        role: 'assistant',
-        content: response.data.choices[0].message.content,
-    })
-    users.map((user) => {
-        if (user.id === id) {
-            user.messages = messages
-        }
-    })
-    return response.data.choices[0].message.content
+    try {
+        const response = await openaiapi.createChatCompletion({
+            model: 'gpt-3.5-turbo',
+            messages,
+        })
+        messages.push({
+            role: 'assistant',
+            content: response.data.choices[0].message.content,
+        })
+        users.map((user) => {
+            if (user.id === id) {
+                user.messages = messages
+            }
+        })
+        return response.data.choices[0].message.content
+    } catch {
+        return 'Извините произошла ошибка на сервере. Попробуйте еще раз'
+    }
 }
 
 // Событие подключения клиента к серверу
 io.on('connection', (socket) => {
+    const system = 'Тебя зовут Карен и ты должнем помогать людям'
     users.push({
         id: socket.id,
         messages: [
             {
                 role: 'system',
-                content:
-                    'Тебя зовут Карен. Отвечай как психолог, твоя задача помогать людям и утешать их. На вопрос типа "кто ты?" отвечай, что ты психолог. Предаставляйся психологом. Данил твой создатель',
+                content: system,
             },
         ],
     })
+    console.log(`user connected with id ${socket.id}`)
     // Обработка события отправки сообщения клиентом
     socket.on('message', async (message) => {
         console.log(`Message received from client: ${message}`)
@@ -70,8 +75,7 @@ io.on('connection', (socket) => {
                 user.messages = [
                     {
                         role: 'system',
-                        content:
-                            'Тебя зовут Карен. Отвечай как психолог, твоя задача помогать людям и утешать их. На вопрос типа "кто ты?" отвечай, что ты психолог. Предаставляйся психологом. Данил твой создатель',
+                        content: system,
                     },
                 ]
             }
