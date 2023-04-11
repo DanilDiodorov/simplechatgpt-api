@@ -42,7 +42,7 @@ const generateResponse = async (prompt, id) => {
         })
         return response.data.choices[0].message.content
     } catch {
-        return 'Извините произошла ошибка на сервере. Попробуйте еще раз'
+        return 'Извините произошла ошибка на сервере.\n\n Попробуйте еще раз.'
     }
 }
 
