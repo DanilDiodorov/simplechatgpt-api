@@ -19,7 +19,7 @@ const openaiapi = new OpenAIApi(
 
 // Создайте функцию для отправки запроса к GPT и получения ответа
 const generateResponse = async (prompt, id) => {
-    let messages
+    let messages = []
     users.map((user) => {
         if (user.id === id) {
             messages = user.messages
@@ -46,29 +46,45 @@ const generateResponse = async (prompt, id) => {
     }
 }
 
+const findUser = (id) => {
+    let finded = false
+    users.map((user) => {
+        if (user.id === id) finded = true
+    })
+    return finded
+}
+
 // Событие подключения клиента к серверу
 io.on('connection', (socket) => {
-    const system = 'Тебя зовут Карен и ты должнем помогать людям'
-    users.push({
-        id: socket.id,
-        messages: [
-            {
-                role: 'system',
-                content: system,
-            },
-        ],
-    })
-    console.log(`user connected with id ${socket.id}`)
+    const system =
+        'Твое имя Карен. И ты должнем помогать людям. На вопрос как тебя зовут говори, что тебя зовут Карен'
+
+    // console.log(`user connected with id ${socket.id}`)
     // Обработка события отправки сообщения клиентом
-    socket.on('message', async (message) => {
-        console.log(`Message received from client: ${message}`)
+    socket.on('message', async ({ uid, text }) => {
+        if (!findUser(uid)) {
+            users.push({
+                id: uid,
+                messages: [
+                    {
+                        role: 'system',
+                        content: system,
+                    },
+                ],
+            })
+            console.log(`User is created with id ${uid}`)
+            console.log(users)
+        }
+
+        console.log(`Message received from client: ${text}`)
 
         // Отправка запроса к GPT для получения ответа
-        const response = await generateResponse(message, socket.id)
+        const response = await generateResponse(text, uid)
         // Отправка ответа клиенту
         console.log(`Message sended to client: ${response}`)
-        socket.emit('message', response)
+        io.emit('message', { message: response, uid })
     })
+
     socket.on('delete', () => {
         users.map((user) => {
             if (user.id === socket.id) {
@@ -81,12 +97,16 @@ io.on('connection', (socket) => {
             }
         })
     })
+
+    socket.on('deleteUser', (uid) => {
+        users = users.filter((user) => {
+            return user.id !== uid
+        })
+        console.log(`User is deleted with id ${uid}`)
+    })
     // Событие отключения клиента от сервера
     socket.on('disconnect', () => {
-        console.log(`Client disconnected: ${socket.id}`)
-        users = users.filter((user) => {
-            return user.id !== socket.id
-        })
+        // console.log(`Client disconnected: ${socket.id}`)
     })
 })
 
