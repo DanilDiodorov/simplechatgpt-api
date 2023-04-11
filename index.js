@@ -54,19 +54,29 @@ io.on('connection', (socket) => {
             },
         ],
     })
-    console.log(users)
     // Обработка события отправки сообщения клиентом
     socket.on('message', async (message) => {
         console.log(`Message received from client: ${message}`)
 
         // Отправка запроса к GPT для получения ответа
         const response = await generateResponse(message, socket.id)
-
         // Отправка ответа клиенту
-        console.log(response)
+        console.log(`Message sended to client: ${response}`)
         socket.emit('message', response)
     })
-
+    socket.on('delete', () => {
+        users.map((user) => {
+            if (user.id === socket.id) {
+                user.messages = [
+                    {
+                        role: 'system',
+                        content:
+                            'Тебя зовут Карен. Отвечай как психолог, твоя задача помогать людям и утешать их. На вопрос типа "кто ты?" отвечай, что ты психолог. Предаставляйся психологом. Данил твой создатель',
+                    },
+                ]
+            }
+        })
+    })
     // Событие отключения клиента от сервера
     socket.on('disconnect', () => {
         console.log(`Client disconnected: ${socket.id}`)
