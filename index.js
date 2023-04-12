@@ -8,6 +8,7 @@ const io = require('socket.io')(server, {
 require('dotenv').config()
 
 let users = []
+let messagesInterval = []
 
 // Установите ключ API OpenAI
 
@@ -61,7 +62,7 @@ io.on('connection', (socket) => {
 
     // console.log(`user connected with id ${socket.id}`)
     // Обработка события отправки сообщения клиентом
-    socket.on('message', async ({ uid, text }) => {
+    socket.on('message', async ({ uid, text }, callBack) => {
         if (!findUser(uid)) {
             users.push({
                 id: uid,
@@ -77,17 +78,33 @@ io.on('connection', (socket) => {
         }
 
         console.log(`Message received from client: ${text}`)
-
+        callBack('recieved')
         // Отправка запроса к GPT для получения ответа
         const response = await generateResponse(text, uid)
         // Отправка ответа клиенту
         console.log(`Message sended to client: ${response}`)
-        io.emit('message', { message: response, uid })
+        messagesInterval.push({
+            uid,
+            interval: setInterval(() => {
+                io.emit('message', { message: response, uid })
+            }, 500),
+        })
     })
 
-    socket.on('delete', () => {
+    socket.on('recieved', (uid) => {
+        messagesInterval.map((ints) => {
+            if (ints.uid === uid) {
+                clearInterval(ints.interval)
+            }
+        })
+        messagesInterval = messagesInterval.filter((ints) => {
+            return ints.uid !== uid
+        })
+    })
+
+    socket.on('delete', (uid) => {
         users.map((user) => {
-            if (user.id === socket.id) {
+            if (user.id === uid) {
                 user.messages = [
                     {
                         role: 'system',
