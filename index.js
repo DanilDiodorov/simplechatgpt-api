@@ -55,6 +55,20 @@ const findUser = (id) => {
     return finded
 }
 
+const checkStatus = (id) => {
+    let status
+    users.map((user) => {
+        if (user.id === id) status = user.status
+    })
+    return status
+}
+
+const changeStatus = (id, to) => {
+    users.map((user) => {
+        if (user.id === id) user.status = to
+    })
+}
+
 // Событие подключения клиента к серверу
 io.on('connection', (socket) => {
     const system =
@@ -66,6 +80,7 @@ io.on('connection', (socket) => {
         if (!findUser(uid)) {
             users.push({
                 id: uid,
+                status: 'canSend',
                 messages: [
                     {
                         role: 'system',
@@ -74,21 +89,24 @@ io.on('connection', (socket) => {
                 ],
             })
             console.log(`User is created with id ${uid}`)
-            console.log(users)
+            console.log(`Users on server: ${users.length}`)
         }
 
-        console.log(`Message received from client: ${text}`)
-        callBack('recieved')
-        // Отправка запроса к GPT для получения ответа
-        const response = await generateResponse(text, uid)
-        // Отправка ответа клиенту
-        console.log(`Message sended to client: ${response}`)
-        messagesInterval.push({
-            uid,
-            interval: setInterval(() => {
-                io.emit('message', { message: response, uid })
-            }, 500),
-        })
+        if (checkStatus(uid) === 'canSend') {
+            changeStatus(uid, 'sending')
+            console.log(`Message received from client: ${text}`)
+            callBack('recieved')
+            // Отправка запроса к GPT для получения ответа
+            const response = await generateResponse(text, uid)
+            // Отправка ответа клиенту
+            console.log(`Message sended to client: ${response}`)
+            messagesInterval.push({
+                uid,
+                interval: setInterval(() => {
+                    io.emit('message', { message: response, uid })
+                }, 500),
+            })
+        }
     })
 
     socket.on('recieved', (uid) => {
@@ -100,6 +118,7 @@ io.on('connection', (socket) => {
         messagesInterval = messagesInterval.filter((ints) => {
             return ints.uid !== uid
         })
+        changeStatus(uid, 'canSend')
     })
 
     socket.on('delete', (uid) => {
