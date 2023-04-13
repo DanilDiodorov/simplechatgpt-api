@@ -28,20 +28,35 @@ const generateResponse = async (prompt, id) => {
     })
     messages.push({ role: 'user', content: prompt.trim() })
     try {
-        const response = await openaiapi.createChatCompletion({
-            model: 'gpt-3.5-turbo',
-            messages,
-        })
-        messages.push({
-            role: 'assistant',
-            content: response.data.choices[0].message.content,
-        })
+        const response = await openaiapi.createChatCompletion(
+            {
+                model: 'gpt-3.5-turbo',
+                messages,
+                temperature: 0,
+                stream: true,
+            },
+            { responseType: 'stream' }
+        )
         users.map((user) => {
             if (user.id === id) {
                 user.messages = messages
             }
         })
-        return response.data.choices[0].message.content
+        return response
+    } catch {
+        return 'Извините произошла ошибка на сервере.\n\n Попробуйте еще раз.'
+    }
+}
+
+const generateResponseDavinci = async (prompt) => {
+    try {
+        const response = await openaiapi.createCompletion({
+            model: 'text-davinci-003',
+            prompt,
+            max_tokens: 7,
+            temperature: 0,
+        })
+        return response.data.choices[0].text
     } catch {
         return 'Извините произошла ошибка на сервере.\n\n Попробуйте еще раз.'
     }
@@ -69,6 +84,20 @@ const changeStatus = (id, to) => {
     })
 }
 
+const checkSending = (id) => {
+    let senidng
+    users.map((user) => {
+        if (user.id === id) senidng = user.senidng
+    })
+    return senidng
+}
+
+const changeSending = (id, to) => {
+    users.map((user) => {
+        if (user.id === id) user.senidng = to
+    })
+}
+
 const getDate = () => {
     let today = new Date()
     let dd = String(today.getDate()).padStart(2, '0')
@@ -80,7 +109,6 @@ const getDate = () => {
 // Событие подключения клиента к серверу
 io.on('connection', (socket) => {
     const system = `Твое имя Карен. Веди себя как Карен, ты должнем помогать людям На вопрос как тебя зовут говори, что тебя зовут Карен. Запомни, что сегодняшняя дата ${getDate()}`
-
     // console.log(`user connected with id ${socket.id}`)
     // Обработка события отправки сообщения клиентом
     socket.on('message', async ({ uid, text }, callBack) => {
@@ -88,6 +116,7 @@ io.on('connection', (socket) => {
             users.push({
                 id: uid,
                 status: 'canSend',
+                sending: false,
                 messages: [
                     {
                         role: 'system',
@@ -104,27 +133,64 @@ io.on('connection', (socket) => {
             console.log(`Message received from client: ${text}`)
             callBack('recieved')
             // Отправка запроса к GPT для получения ответа
+
+            // const response = await generateResponse(text, uid)
+
             const response = await generateResponse(text, uid)
+
             // Отправка ответа клиенту
-            console.log(`Message sended to client: ${response}`)
-            messagesInterval.push({
-                uid,
-                interval: setInterval(() => {
-                    io.emit('message', { message: response, uid })
-                }, 500),
+            changeSending(uid, true)
+
+            let fullRes = ''
+            response.data.on('data', (data) => {
+                const lines = data
+                    .toString()
+                    .split('\n')
+                    .filter((line) => line.trim() !== '')
+                for (const line of lines) {
+                    const message = line.replace(/^data: /, '')
+                    if (message === '[DONE]' || !checkSending(uid)) {
+                        users.map((user) => {
+                            if (user.id === uid) {
+                                user.messages = [
+                                    ...user.messages,
+                                    {
+                                        role: 'assistant',
+                                        content: fullRes,
+                                    },
+                                ]
+                            }
+                        })
+                        console.log('Message sended to client: ' + fullRes)
+                        io.emit('message', { message: null, uid })
+                        return
+                    }
+                    const parsed = JSON.parse(message)
+                    if (parsed.choices[0].delta.content !== undefined) {
+                        try {
+                            io.emit('message', {
+                                message: parsed.choices[0].delta.content,
+                                uid,
+                            })
+                        } catch (e) {
+                            console.log(e)
+                        }
+                        fullRes += parsed.choices[0].delta.content
+                    }
+                }
             })
         }
     })
 
     socket.on('recieved', (uid) => {
-        messagesInterval.map((ints) => {
-            if (ints.uid === uid) {
-                clearInterval(ints.interval)
-            }
-        })
-        messagesInterval = messagesInterval.filter((ints) => {
-            return ints.uid !== uid
-        })
+        // messagesInterval.map((ints) => {
+        //     if (ints.uid === uid) {
+        //         clearInterval(ints.interval)
+        //     }
+        // })
+        // messagesInterval = messagesInterval.filter((ints) => {
+        //     return ints.uid !== uid
+        // })
         changeStatus(uid, 'canSend')
     })
 
