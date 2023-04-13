@@ -69,10 +69,17 @@ const changeStatus = (id, to) => {
     })
 }
 
+const getDate = () => {
+    let today = new Date()
+    let dd = String(today.getDate()).padStart(2, '0')
+    let mm = String(today.getMonth() + 1).padStart(2, '0') //January is 0!
+    let yyyy = today.getFullYear()
+    return dd + '.' + mm + '.' + yyyy
+}
+
 // Событие подключения клиента к серверу
 io.on('connection', (socket) => {
-    const system =
-        'Твое имя Карен. И ты должнем помогать людям. На вопрос как тебя зовут говори, что тебя зовут Карен'
+    const system = `Твое имя Карен. Веди себя как Карен, ты должнем помогать людям На вопрос как тебя зовут говори, что тебя зовут Карен. Запомни, что сегодняшняя дата ${getDate()}`
 
     // console.log(`user connected with id ${socket.id}`)
     // Обработка события отправки сообщения клиентом
