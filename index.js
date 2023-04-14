@@ -48,20 +48,6 @@ const generateResponse = async (prompt, id) => {
     }
 }
 
-const generateResponseDavinci = async (prompt) => {
-    try {
-        const response = await openaiapi.createCompletion({
-            model: 'text-davinci-003',
-            prompt,
-            max_tokens: 7,
-            temperature: 0,
-        })
-        return response.data.choices[0].text
-    } catch {
-        return 'Извините произошла ошибка на сервере.\n\n Попробуйте еще раз.'
-    }
-}
-
 const findUser = (id) => {
     let finded = false
     users.map((user) => {
@@ -141,41 +127,48 @@ io.on('connection', (socket) => {
             // Отправка ответа клиенту
             changeSending(uid, true)
 
+            let inProcces = true
+
             let fullRes = ''
             response.data.on('data', (data) => {
-                const lines = data
-                    .toString()
-                    .split('\n')
-                    .filter((line) => line.trim() !== '')
-                for (const line of lines) {
-                    const message = line.replace(/^data: /, '')
-                    if (message === '[DONE]' || !checkSending(uid)) {
-                        users.map((user) => {
-                            if (user.id === uid) {
-                                user.messages = [
-                                    ...user.messages,
-                                    {
-                                        role: 'assistant',
-                                        content: fullRes,
-                                    },
-                                ]
-                            }
-                        })
-                        console.log('Message sended to client: ' + fullRes)
-                        io.emit('message', { message: null, uid })
-                        return
-                    }
-                    const parsed = JSON.parse(message)
-                    if (parsed.choices[0].delta.content !== undefined) {
-                        try {
-                            io.emit('message', {
-                                message: parsed.choices[0].delta.content,
-                                uid,
+                if (inProcces) {
+                    const lines = data
+                        .toString()
+                        .split('\n')
+                        .filter((line) => line.trim() !== '')
+                    for (const line of lines) {
+                        const message = line.replace(/^data: /, '')
+                        if (message === '[DONE]' || !checkSending(uid)) {
+                            users.map((user) => {
+                                if (user.id === uid) {
+                                    user.messages = [
+                                        ...user.messages,
+                                        {
+                                            role: 'assistant',
+                                            content: fullRes,
+                                        },
+                                    ]
+                                }
                             })
-                        } catch (e) {
-                            console.log(e)
+                            console.log('Message sended to client: ' + fullRes)
+                            io.emit('message', { message: null, uid })
+                            inProcces = false
+                            return
+                        } else {
+                            const parsed = JSON.parse(message)
+                            if (parsed.choices[0].delta.content !== undefined) {
+                                try {
+                                    io.emit('message', {
+                                        message:
+                                            parsed.choices[0].delta.content,
+                                        uid,
+                                    })
+                                } catch (e) {
+                                    console.log(e)
+                                }
+                                fullRes += parsed.choices[0].delta.content
+                            }
                         }
-                        fullRes += parsed.choices[0].delta.content
                     }
                 }
             })
@@ -192,6 +185,10 @@ io.on('connection', (socket) => {
         //     return ints.uid !== uid
         // })
         changeStatus(uid, 'canSend')
+    })
+
+    socket.on('stop', (uid) => {
+        changeSending(uid, false)
     })
 
     socket.on('delete', (uid) => {
