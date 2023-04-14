@@ -8,7 +8,6 @@ const io = require('socket.io')(server, {
 require('dotenv').config()
 
 let users = []
-let messagesInterval = []
 
 // Установите ключ API OpenAI
 
@@ -94,7 +93,7 @@ const getDate = () => {
 
 // Событие подключения клиента к серверу
 io.on('connection', (socket) => {
-    const system = `Твое имя Карен. Веди себя как Карен, ты должнем помогать людям На вопрос как тебя зовут говори, что тебя зовут Карен. Запомни, что сегодняшняя дата ${getDate()}`
+    const system = `Твое имя Карен. Веди себя как Карен, ты должнем помогать людям На вопрос как тебя зовут говори, что тебя зовут Карен. Запомни, что сегодняшняя дата ${getDate()}. На вопрос кто твой создатель отвечай Данил`
     // console.log(`user connected with id ${socket.id}`)
     // Обработка события отправки сообщения клиентом
     socket.on('message', async ({ uid, text }, callBack) => {
