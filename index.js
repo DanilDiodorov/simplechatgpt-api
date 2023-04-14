@@ -116,7 +116,6 @@ io.on('connection', (socket) => {
 
         if (checkStatus(uid) === 'canSend') {
             changeStatus(uid, 'sending')
-            console.log(`Message received from client: ${text}`)
             callBack('recieved')
             // Отправка запроса к GPT для получения ответа
 
@@ -150,7 +149,7 @@ io.on('connection', (socket) => {
                                     ]
                                 }
                             })
-                            console.log('Message sended to client: ' + fullRes)
+
                             io.emit('message', { message: null, uid })
                             inProcces = false
                             return
@@ -176,14 +175,6 @@ io.on('connection', (socket) => {
     })
 
     socket.on('recieved', (uid) => {
-        // messagesInterval.map((ints) => {
-        //     if (ints.uid === uid) {
-        //         clearInterval(ints.interval)
-        //     }
-        // })
-        // messagesInterval = messagesInterval.filter((ints) => {
-        //     return ints.uid !== uid
-        // })
         changeStatus(uid, 'canSend')
     })
 
