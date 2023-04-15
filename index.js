@@ -128,48 +128,55 @@ io.on('connection', (socket) => {
             let inProcces = true
 
             let fullRes = ''
-            response.data.on('data', (data) => {
-                if (inProcces) {
-                    const lines = data
-                        .toString()
-                        .split('\n')
-                        .filter((line) => line.trim() !== '')
-                    for (const line of lines) {
-                        const message = line.replace(/^data: /, '')
-                        if (message === '[DONE]' || !checkSending(uid)) {
-                            users.map((user) => {
-                                if (user.id === uid) {
-                                    user.messages = [
-                                        ...user.messages,
-                                        {
-                                            role: 'assistant',
-                                            content: fullRes,
-                                        },
-                                    ]
-                                }
-                            })
+            try {
+                response.data.on('data', (data) => {
+                    if (inProcces) {
+                        const lines = data
+                            .toString()
+                            .split('\n')
+                            .filter((line) => line.trim() !== '')
+                        for (const line of lines) {
+                            const message = line.replace(/^data: /, '')
+                            if (message === '[DONE]' || !checkSending(uid)) {
+                                users.map((user) => {
+                                    if (user.id === uid) {
+                                        user.messages = [
+                                            ...user.messages,
+                                            {
+                                                role: 'assistant',
+                                                content: fullRes,
+                                            },
+                                        ]
+                                    }
+                                })
 
-                            io.emit('message', { message: null, uid })
-                            inProcces = false
-                            return
-                        } else {
-                            const parsed = JSON.parse(message)
-                            if (parsed.choices[0].delta.content !== undefined) {
-                                try {
-                                    io.emit('message', {
-                                        message:
-                                            parsed.choices[0].delta.content,
-                                        uid,
-                                    })
-                                } catch (e) {
-                                    console.log(e)
+                                io.emit('message', { message: null, uid })
+                                inProcces = false
+                                return
+                            } else {
+                                const parsed = JSON.parse(message)
+                                if (
+                                    parsed.choices[0].delta.content !==
+                                    undefined
+                                ) {
+                                    try {
+                                        io.emit('message', {
+                                            message:
+                                                parsed.choices[0].delta.content,
+                                            uid,
+                                        })
+                                    } catch (e) {
+                                        console.log(e)
+                                    }
+                                    fullRes += parsed.choices[0].delta.content
                                 }
-                                fullRes += parsed.choices[0].delta.content
                             }
                         }
                     }
-                }
-            })
+                })
+            } catch (e) {
+                console.log(e)
+            }
         }
     })
 
