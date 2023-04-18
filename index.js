@@ -154,21 +154,27 @@ io.on('connection', (socket) => {
                                 inProcces = false
                                 return
                             } else {
-                                const parsed = JSON.parse(message)
-                                if (
-                                    parsed.choices[0].delta.content !==
-                                    undefined
-                                ) {
-                                    try {
-                                        io.emit('message', {
-                                            message:
-                                                parsed.choices[0].delta.content,
-                                            uid,
-                                        })
-                                    } catch (e) {
-                                        console.log(e)
+                                try {
+                                    const parsed = JSON.parse(message)
+                                    if (
+                                        parsed.choices[0].delta.content !==
+                                        undefined
+                                    ) {
+                                        try {
+                                            io.emit('message', {
+                                                message:
+                                                    parsed.choices[0].delta
+                                                        .content,
+                                                uid,
+                                            })
+                                        } catch (e) {
+                                            console.log(e)
+                                        }
+                                        fullRes +=
+                                            parsed.choices[0].delta.content
                                     }
-                                    fullRes += parsed.choices[0].delta.content
+                                } catch (e) {
+                                    console.log(e)
                                 }
                             }
                         }
